@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 
 /// Mobile/Web stub implementation for DeviceCommunicationService
 /// Serial port functionality is not available on mobile platforms
