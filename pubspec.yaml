@@ -59,6 +59,7 @@ dev_dependencies:
   flutter_lints: null
   flutter_test:
     sdk: flutter
+  msix: ^3.16.7
 
 # dependency_overrides:
 #  flutter_libserialport:
@@ -99,3 +100,14 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
+
+msix_config:
+  display_name: MNemoLink
+  publisher_display_name: SebKister
+  identity_name: com.sebkister.mnemolink
+  msix_version: 1.5.0.0
+  description: Computer interface software for MNemo v2 cave surveying devices
+  capabilities: 'internetClient,removableStorage'
+  icons_background_color: transparent
+  architecture: x64
+  install_certificate: false

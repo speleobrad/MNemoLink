@@ -1,0 +1,196 @@
+name: Nightly Build - Manual Trigger
+permissions: write-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: true
+        default: 'nightly-build'
+        type: string
+
+jobs:
+  linter:
+    name: Linter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - name: Install flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+          architecture: x64
+      - name: Ubuntu dependencies 
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ninja-build libgtk-3-dev
+      - name: Linter check
+        run: flutter analyze
+
+  build-linux:
+    name: Build for Linux
+    runs-on: ubuntu-latest
+    needs: linter
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - name: Install flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+          architecture: x64
+      - name: Ubuntu dependencies 
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ninja-build libgtk-3-dev
+      - name: Enable flutter desktop (linux)
+        run: flutter config --enable-linux-desktop
+      - name: Build (Linux)
+        run: flutter build linux --release
+      - name: Create Linux archive
+        run: |
+          cd build/linux/x64/release/bundle
+          tar -czf ../../../../../mnemolink-linux-x64.tar.gz *
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mnemolink-linux-x64
+          path: mnemolink-linux-x64.tar.gz
+          retention-days: 30
+        
+  build-macos:
+    name: Build for MacOS
+    runs-on: macos-latest
+    needs: linter
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - name: Install flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+          architecture: x64
+      - name: MacOS dependencies
+        run: brew install automake libtool
+      - name: Enable flutter desktop (MacOS)
+        run: flutter config --enable-macos-desktop
+      - name: Build (MacOS)
+        run: flutter build macos --release
+      - name: Create macOS DMG
+        run: |
+          # Create a temporary directory for DMG contents
+          mkdir -p dmg_temp
+          cp -R build/macos/Build/Products/Release/mnemolink.app dmg_temp/
+          
+          # Create DMG
+          hdiutil create -volname "MNemoLink" -srcfolder dmg_temp -ov -format UDZO mnemolink-macos.dmg
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mnemolink-macos
+          path: mnemolink-macos.dmg
+          retention-days: 30
+
+  build-windows:
+    name: Build for Windows
+    runs-on: windows-latest
+    needs: linter
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - name: Install flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+          architecture: x64
+      - name: Enable flutter desktop (Windows)
+        run: flutter config --enable-windows-desktop
+      - name: Build (Windows)
+        run: flutter build windows --release
+      - name: Create MSIX installer
+        run: |
+          flutter pub get
+          dart run msix:create
+      - name: Create Windows zip archive
+        run: |
+          # Create a zip archive of the Windows build
+          cd build\windows\x64\runner\Release
+          powershell Compress-Archive -Path * -DestinationPath ..\..\..\..\..\mnemolink-windows-x64.zip
+      - name: Upload Windows MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mnemolink-windows-msix
+          path: build/windows/x64/runner/Release/*.msix
+          retention-days: 30
+      - name: Upload Windows ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mnemolink-windows-x64
+          path: mnemolink-windows-x64.zip
+          retention-days: 30
+
+  create-release-summary:
+    name: Create Release Summary
+    runs-on: ubuntu-latest
+    needs: [build-linux, build-macos, build-windows]
+    if: always()
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create release summary
+        run: |
+          echo "# Nightly Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ inputs.branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Build Date:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Available Artifacts:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -d "artifacts/mnemolink-linux-x64" ]; then
+            echo "✅ **Linux x64** - mnemolink-linux-x64.tar.gz" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Linux x64** - Build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -d "artifacts/mnemolink-macos" ]; then
+            echo "✅ **macOS** - mnemolink-macos.dmg" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **macOS** - Build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -d "artifacts/mnemolink-windows-msix" ]; then
+            echo "✅ **Windows MSIX** - mnemolink-windows.msix" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Windows MSIX** - Build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -d "artifacts/mnemolink-windows-x64" ]; then
+            echo "✅ **Windows ZIP** - mnemolink-windows-x64.zip" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Windows ZIP** - Build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Artifacts are available for download for 30 days." >> $GITHUB_STEP_SUMMARY
