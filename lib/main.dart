@@ -8,6 +8,7 @@ import 'package:network_info_plus/network_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 // Local imports
 import 'models/models.dart';
@@ -95,7 +96,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Color standbyColor = const Color(0x00000000);
   Color stabilizeColor = const Color(0x00000000);
   Color readyColor = const Color(0x00000000);
-  
+
   // Time and version info
   int timeON = 0;
   int timeSurvey = 0;
@@ -499,7 +500,7 @@ class _MyHomePageState extends State<MyHomePage> {
       date.hour,
       date.minute,
     ];
-    
+
     final result = await _deviceService.executeCLICommandWithData("syncdatetime", dateData);
     setState(() {
       if (result.success) {
@@ -508,6 +509,221 @@ class _MyHomePageState extends State<MyHomePage> {
         cliHistory.add("e:Error in DateTime");
       }
     });
+  }
+
+  // Settings getter methods
+  Future<void> _getCurrentStabilizationFactor() async {
+    final result = await _deviceService.executeCLICommand("getstabilizationfactor");
+    if (result.success) {
+      setState(() => stabilizationFactor = int.tryParse(result.responseString) ?? 0);
+    }
+  }
+
+  Future<void> _getCurrentClickThreshold() async {
+    final result = await _deviceService.executeCLICommand("getclickthreshold");
+    if (result.success) {
+      setState(() => clickThreshold = int.tryParse(result.responseString) ?? 30);
+    }
+  }
+
+  Future<void> _getCurrentBMClickDurationFactor() async {
+    final result = await _deviceService.executeCLICommand("getBMclickfactor");
+    if (result.success) {
+      setState(() => clickBMDurationFactor = int.tryParse(result.responseString) ?? 100);
+    }
+  }
+
+  Future<void> _getCurrentSafetySwitchON() async {
+    final result = await _deviceService.executeCLICommand("eepromread 57");
+    if (result.success) {
+      setState(() => safetySwitchON = int.tryParse(result.responseString) ?? -1);
+    }
+  }
+
+  Future<void> _getCurrentDoubleTap() async {
+    final result = await _deviceService.executeCLICommand("eepromread 56");
+    if (result.success) {
+      setState(() => doubleTap = int.tryParse(result.responseString) ?? -1);
+    }
+  }
+
+  Future<void> _getCurrentTimeFormat() async {
+    final result = await _deviceService.executeCLICommand("eepromread 35");
+    if (result.success) {
+      setState(() => timeFormat = int.tryParse(result.responseString) ?? -1);
+    }
+  }
+
+  Future<void> _getCurrentDateFormat() async {
+    final result = await _deviceService.executeCLICommand("eepromread 36");
+    if (result.success) {
+      setState(() => dateFormat = int.tryParse(result.responseString) ?? -1);
+    }
+  }
+
+  Future<void> _getCurrentWifiList() async {
+    final result = await _deviceService.executeCLICommand("listwifinet");
+    if (result.success) {
+      setState(() {
+        wifiList = result.responseString.split("\r\n");
+        wifiList.removeWhere((element) => element.isEmpty);
+      });
+    }
+  }
+
+  Future<void> _getCurrentColorScheme() async {
+    var result = await _deviceService.executeCLICommand("getcolor readinga");
+    if (result.success) {
+      setState(() => readingAColor = Color(0xFF000000 + (int.tryParse(result.responseString) ?? 0)));
+    }
+
+    result = await _deviceService.executeCLICommand("getcolor readingb");
+    if (result.success) {
+      setState(() => readingBColor = Color(0xFF000000 + (int.tryParse(result.responseString) ?? 0)));
+    }
+
+    result = await _deviceService.executeCLICommand("getcolor standby");
+    if (result.success) {
+      setState(() => standbyColor = Color(0xFF000000 + (int.tryParse(result.responseString) ?? 0)));
+    }
+
+    result = await _deviceService.executeCLICommand("getcolor ready");
+    if (result.success) {
+      setState(() => readyColor = Color(0xFF000000 + (int.tryParse(result.responseString) ?? 0)));
+    }
+
+    result = await _deviceService.executeCLICommand("getcolor stabilize");
+    if (result.success) {
+      setState(() => stabilizeColor = Color(0xFF000000 + (int.tryParse(result.responseString) ?? 0)));
+    }
+  }
+
+  // Compass calibration methods - reserved for future feature
+  // ignore: unused_element
+  Future<void> _getCurrentXCompass() async {
+    final result = await _deviceService.executeCLICommand("eepromread 32");
+    if (result.success) {
+      setState(() => xCompass = int.tryParse(result.responseString) ?? 0);
+    }
+  }
+
+  // ignore: unused_element
+  Future<void> _getCurrentYCompass() async {
+    final result = await _deviceService.executeCLICommand("eepromread 33");
+    if (result.success) {
+      setState(() => yCompass = int.tryParse(result.responseString) ?? 0);
+    }
+  }
+
+  // ignore: unused_element
+  Future<void> _getCurrentZCompass() async {
+    final result = await _deviceService.executeCLICommand("eepromread 34");
+    if (result.success) {
+      setState(() => zCompass = int.tryParse(result.responseString) ?? 0);
+    }
+  }
+
+  // ignore: unused_element
+  Future<void> _getCurrentCalMode() async {
+    final result = await _deviceService.executeCLICommand("eepromread 37");
+    if (result.success) {
+      setState(() => calMode = int.tryParse(result.responseString) ?? -1);
+    }
+  }
+
+  // Settings setter methods
+  Future<void> _setStabilizationFactor(int? value) async {
+    if (value == null) return;
+    await _deviceService.executeCLICommand("setstabilizationfactor $value");
+    await _getCurrentStabilizationFactor();
+  }
+
+  Future<void> _setClickThreshold(int? value) async {
+    if (value == null) return;
+    await _deviceService.executeCLICommand("setclickthreshold $value");
+    await _getCurrentClickThreshold();
+  }
+
+  Future<void> _setBMDurationFactor(int? value) async {
+    if (value == null) return;
+    await _deviceService.executeCLICommand("setBMclickfactor $value");
+    await _getCurrentBMClickDurationFactor();
+  }
+
+  Future<void> _setSafetySwitchON(int? value) async {
+    if (value == null) return;
+    await _deviceService.executeCLICommand("eepromwrite 57 $value");
+    await _getCurrentSafetySwitchON();
+  }
+
+  Future<void> _setDoubleTap(int? value) async {
+    if (value == null) return;
+    await _deviceService.executeCLICommand("eepromwrite 56 $value");
+    await _getCurrentDoubleTap();
+  }
+
+  Future<void> _setTimeFormat(int? value) async {
+    if (value == null) return;
+    await _deviceService.executeCLICommand("eepromwrite 35 $value");
+    await _getCurrentTimeFormat();
+  }
+
+  Future<void> _setDateFormat(int? value) async {
+    if (value == null) return;
+    await _deviceService.executeCLICommand("eepromwrite 36 $value");
+    await _getCurrentDateFormat();
+  }
+
+  Future<void> _addToWifiList(String name, String passwd) async {
+    await _deviceService.executeCLICommand("addwifinet $name $passwd");
+    await _getCurrentWifiList();
+  }
+
+  Future<void> _removeFromWifiList(String? network) async {
+    if (network == null) return;
+    await _deviceService.executeCLICommand("removewifinet $network");
+    await _getCurrentWifiList();
+  }
+
+  int _colorToDeviceInt(Color color) {
+    return (color.b * 255).floor() +
+        (color.g * 255).floor() * 256 +
+        (color.r * 255).floor() * 65536 +
+        (color.a * 255).floor() * 16777216;
+  }
+
+  Future<void> _setColorSchemeReadingA() async {
+    setState(() => readingAColor = pickerColor);
+    await _deviceService.executeCLICommand("setcolor readinga ${_colorToDeviceInt(pickerColor)}");
+  }
+
+  Future<void> _setColorSchemeReadingB() async {
+    setState(() => readingBColor = pickerColor);
+    await _deviceService.executeCLICommand("setcolor readingb ${_colorToDeviceInt(pickerColor)}");
+  }
+
+  Future<void> _setColorSchemeStandby() async {
+    setState(() => standbyColor = pickerColor);
+    await _deviceService.executeCLICommand("setcolor standby ${_colorToDeviceInt(pickerColor)}");
+  }
+
+  Future<void> _setColorSchemeReady() async {
+    setState(() => readyColor = pickerColor);
+    await _deviceService.executeCLICommand("setcolor ready ${_colorToDeviceInt(pickerColor)}");
+  }
+
+  Future<void> _setColorSchemeStabilize() async {
+    setState(() => stabilizeColor = pickerColor);
+    await _deviceService.executeCLICommand("setcolor stabilize ${_colorToDeviceInt(pickerColor)}");
+  }
+
+  Future<void> _resetColorScheme() async {
+    await _deviceService.executeCLICommand("defaultcolorscheme");
+    await _getCurrentColorScheme();
+  }
+
+  void _changeColor(Color color) {
+    setState(() => pickerColor = color);
   }
 
   void _scrollDown() {
@@ -672,7 +888,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     final result = await _firmwareService.updateFirmware(urlLatestFirmware);
-    
+
     setState(() {
       updatingFirmware = false;
     });
@@ -680,7 +896,9 @@ class _MyHomePageState extends State<MyHomePage> {
     if (result.success) {
       await _initMnemoPort(); // Reconnect after update
     }
-    // Handle result (show dialog, etc.)
+
+    // Show result dialog to user
+    await _showFirmwareUpdateResultDialog(result);
   }
 
   Future<void> _onUpdateSoftware() async {
@@ -801,6 +1019,63 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Future<void> _showFirmwareUpdateResultDialog(UpdateResult result) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          icon: Icon(
+            result.success ? Icons.check_circle : Icons.error,
+            color: result.success ? Colors.green : Colors.red,
+            size: 48,
+          ),
+          title: Text(result.success ? 'Update Successful' : 'Update Failed'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text(result.message),
+                if (result.success) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Your MNemo device has been updated to the latest firmware version.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+                if (!result.success) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Please try again. If the problem persists, check:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const Text('• Device is properly connected'),
+                  const Text('• No other applications are using the device'),
+                  const Text('• Internet connection is stable'),
+                  if (Platform.isLinux)
+                    const Text('• RPI-RP2 drive is mounted (Linux)'),
+                ],
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            if (!result.success)
+              TextButton(
+                child: const Text('Retry'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _onUpdateFirmware();
+                },
+              ),
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _showNonResponsiveWarning() async {
     return showDialog<void>(
       context: context,
@@ -852,11 +1127,6 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
   }
-
-  // Color picker functionality (for future settings implementation)
-  // void _changeColor(Color color) {
-  //   setState(() => pickerColor = color);
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -1069,11 +1339,381 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       );
     }
-    
-    // Settings implementation would go here
-    // For now, return placeholder
-    return const Center(
-      child: Text("Settings interface would be implemented here"),
+
+    const double widthColorButton = 150.0;
+    final bool serialBusy = _deviceService.isSerialBusy;
+
+    return Container(
+      decoration: const BoxDecoration(color: Colors.black12),
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        shrinkWrap: true,
+        children: [
+          // Date & Time Settings
+          SettingCard(
+            name: "Date & Time",
+            subtitle: "Synchronize date and time with the computer",
+            icon: Icons.timer,
+            actionWidget: Row(
+              children: [
+                SettingActionButton(
+                  "SYNC NOW",
+                  serialBusy ? null : () => _syncDateTime(),
+                ),
+                SettingActionButton(
+                  "GET TIME FORMAT",
+                  serialBusy ? null : () => _getCurrentTimeFormat(),
+                ),
+                SettingActionRadioList(
+                  "",
+                  const {"24H": 0, "12AM/12PM": 1},
+                  serialBusy ? null : _setTimeFormat,
+                  timeFormat,
+                ),
+                SettingActionButton(
+                  "GET DATE FORMAT",
+                  serialBusy ? null : () => _getCurrentDateFormat(),
+                ),
+                SettingActionRadioList(
+                  "",
+                  const {"DD/MM": 0, "MM/DD": 1},
+                  serialBusy ? null : _setDateFormat,
+                  dateFormat,
+                ),
+              ],
+            ),
+          ),
+
+          // WiFi Settings
+          SettingCard(
+            name: "WIFI",
+            subtitle: "Manage known WIFI networks",
+            icon: Icons.wifi,
+            actionWidget: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                SettingActionButton(
+                  "GET CURRENT",
+                  serialBusy ? null : () => _getCurrentWifiList(),
+                ),
+                SettingWifiList(
+                  wifiList,
+                  serialBusy ? null : _removeFromWifiList,
+                ),
+                SettingWifiActionButton(
+                  "ADD NEW",
+                  serialBusy ? null : (name, passwd) => _addToWifiList(name, passwd),
+                ),
+              ],
+            ),
+          ),
+
+          // Color Scheme Settings
+          SettingCard(
+            name: "Color Scheme",
+            subtitle: "Colors defining survey steps",
+            icon: Icons.color_lens_outlined,
+            actionWidget: Row(
+              children: [
+                SettingActionButton.sized(
+                  "GET CURRENT",
+                  serialBusy ? null : () => _getCurrentColorScheme(),
+                  widthColorButton,
+                  0.0,
+                ),
+                Column(
+                  children: [
+                    SettingActionButton.sized(
+                      "RESET TO DEFAULT",
+                      serialBusy ? null : () => _resetColorScheme(),
+                      widthColorButton,
+                      0.0,
+                    ),
+                    Row(
+                      children: [
+                        SettingActionButton.sized(
+                          "SET READING A",
+                          serialBusy ? null : () => _setColorSchemeReadingA(),
+                          widthColorButton,
+                          0.0,
+                        ),
+                        Container(
+                          width: 100,
+                          height: 10,
+                          color: readingAColor,
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        SettingActionButton.sized(
+                          "SET READING B",
+                          serialBusy ? null : () => _setColorSchemeReadingB(),
+                          widthColorButton,
+                          0.0,
+                        ),
+                        Container(
+                          width: 100,
+                          height: 10,
+                          color: readingBColor,
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        SettingActionButton.sized(
+                          "SET STANDBY",
+                          serialBusy ? null : () => _setColorSchemeStandby(),
+                          widthColorButton,
+                          0.0,
+                        ),
+                        Container(
+                          width: 100,
+                          height: 10,
+                          color: standbyColor,
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        SettingActionButton.sized(
+                          "SET READY",
+                          serialBusy ? null : () => _setColorSchemeReady(),
+                          widthColorButton,
+                          0.0,
+                        ),
+                        Container(
+                          width: 100,
+                          height: 10,
+                          color: readyColor,
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        SettingActionButton.sized(
+                          "SET STABILIZE",
+                          serialBusy ? null : () => _setColorSchemeStabilize(),
+                          widthColorButton,
+                          0.0,
+                        ),
+                        Container(
+                          width: 100,
+                          height: 10,
+                          color: stabilizeColor,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 50),
+                SizedBox(
+                  height: 200,
+                  width: 400,
+                  child: MaterialPicker(
+                    pickerColor: pickerColor,
+                    onColorChanged: _changeColor,
+                    enableLabel: true,
+                  ),
+                ),
+                const SizedBox(width: 50),
+              ],
+            ),
+          ),
+
+          // Stabilization Factor (with lock)
+          Stack(
+            children: [
+              SettingCard(
+                locked: factorySettingsLockStabilizationFactor,
+                name: "Stabilization",
+                subtitle: "How much stability is required to get a compass reading",
+                icon: Icons.vibration,
+                actionWidget: Row(
+                  children: [
+                    SettingActionButton(
+                      "GET CURRENT",
+                      serialBusy ? null : () => _getCurrentStabilizationFactor(),
+                    ),
+                    SettingActionRadioList(
+                      "",
+                      const {"LOW": 5, "MID": 10, "HIGH": 20},
+                      serialBusy ? null : _setStabilizationFactor,
+                      stabilizationFactor,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    factorySettingsLockStabilizationFactor = !factorySettingsLockStabilizationFactor;
+                  });
+                },
+                icon: factorySettingsLockStabilizationFactor
+                    ? const Icon(Icons.lock)
+                    : const Icon(Icons.lock_open),
+              ),
+            ],
+          ),
+
+          // Slider Button Sensitivity (with lock)
+          Stack(
+            children: [
+              SettingCard(
+                locked: factorySettingsLockSlider,
+                name: "Slider Button",
+                subtitle: "Adjust the sensitivity of the slider button",
+                icon: Icons.smart_button,
+                actionWidget: Row(
+                  children: [
+                    SettingActionButton(
+                      "GET CURRENT",
+                      serialBusy ? null : () => _getCurrentClickThreshold(),
+                    ),
+                    SettingActionRadioList(
+                      "",
+                      const {
+                        "LOW(50)": 50,
+                        "MID(40)": 40,
+                        "HIGH(30)": 30,
+                        "ULTRA HIGH(25)": 25,
+                        "MK.SPEC II (20)": 20,
+                        "MK.SPEC I (15)": 15,
+                      },
+                      serialBusy ? null : _setClickThreshold,
+                      clickThreshold,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    factorySettingsLockSlider = !factorySettingsLockSlider;
+                  });
+                },
+                icon: factorySettingsLockSlider
+                    ? const Icon(Icons.lock)
+                    : const Icon(Icons.lock_open),
+              ),
+            ],
+          ),
+
+          // Basic Mode Duration (with lock)
+          Stack(
+            children: [
+              SettingCard(
+                locked: factorySettingsLockBMDuration,
+                name: "Basic Mode",
+                subtitle: "Adjust the duration required to validate a command with the slider button",
+                icon: Icons.smart_button,
+                actionWidget: Row(
+                  children: [
+                    SettingActionButton(
+                      "GET CURRENT",
+                      serialBusy ? null : () => _getCurrentBMClickDurationFactor(),
+                    ),
+                    SettingActionRadioList(
+                      "",
+                      const {
+                        "EXTRA FAST": 25,
+                        "FAST": 50,
+                        "NORMAL": 100,
+                        "SLOW": 150,
+                      },
+                      serialBusy ? null : _setBMDurationFactor,
+                      clickBMDurationFactor,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    factorySettingsLockBMDuration = !factorySettingsLockBMDuration;
+                  });
+                },
+                icon: factorySettingsLockBMDuration
+                    ? const Icon(Icons.lock)
+                    : const Icon(Icons.lock_open),
+              ),
+            ],
+          ),
+
+          // Switch ON Safety (with lock)
+          Stack(
+            children: [
+              SettingCard(
+                locked: factorySettingsLockSafetyON,
+                name: "Switch ON Safety",
+                subtitle: "Require to click right before switching on the device",
+                icon: Icons.smart_button,
+                actionWidget: Row(
+                  children: [
+                    SettingActionButton(
+                      "GET CURRENT",
+                      serialBusy ? null : () => _getCurrentSafetySwitchON(),
+                    ),
+                    SettingActionRadioList(
+                      "",
+                      const {"DISABLED": 0, "ENABLED": 1},
+                      serialBusy ? null : _setSafetySwitchON,
+                      safetySwitchON,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    factorySettingsLockSafetyON = !factorySettingsLockSafetyON;
+                  });
+                },
+                icon: factorySettingsLockSafetyON
+                    ? const Icon(Icons.lock)
+                    : const Icon(Icons.lock_open),
+              ),
+            ],
+          ),
+
+          // Double Tap (with lock)
+          Stack(
+            children: [
+              SettingCard(
+                locked: factorySettingsDoubleTapON,
+                name: "Double Tap",
+                subtitle: "Double tap to wake device",
+                icon: Icons.touch_app,
+                actionWidget: Row(
+                  children: [
+                    SettingActionButton(
+                      "GET CURRENT",
+                      serialBusy ? null : () => _getCurrentDoubleTap(),
+                    ),
+                    SettingActionRadioList(
+                      "",
+                      const {"DISABLED": 0, "ENABLED": 1},
+                      serialBusy ? null : _setDoubleTap,
+                      doubleTap,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    factorySettingsDoubleTapON = !factorySettingsDoubleTapON;
+                  });
+                },
+                icon: factorySettingsDoubleTapON
+                    ? const Icon(Icons.lock)
+                    : const Icon(Icons.lock_open),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

@@ -159,23 +159,20 @@ class SettingActionRadioList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: actionMap.keys
-          .map((String k) => Row(
-                children: [
-                  // TODO: Update to RadioGroup when migrating to newer Flutter patterns
-                  // ignore: deprecated_member_use
-                  Radio<int>(
-                    key: null,
-                    value: actionMap[k]!.toInt(),
-                    // ignore: deprecated_member_use
-                    groupValue: selectedValue,
-                    // ignore: deprecated_member_use
-                    onChanged: callback,
-                  ),
-                  Text(k),
-                ],
-              ))
-          .toList(),
+      mainAxisSize: MainAxisSize.min,
+      children: actionMap.entries.map((entry) {
+        return RadioListTile<int>(
+          title: Text(entry.key),
+          value: entry.value,
+          // ignore: deprecated_member_use
+          groupValue: selectedValue,
+          // ignore: deprecated_member_use
+          onChanged: callback,
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          visualDensity: VisualDensity.compact,
+        );
+      }).toList(),
     );
   }
 }
